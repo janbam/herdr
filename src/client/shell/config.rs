@@ -151,6 +151,7 @@ impl ClientShellConfig {
             mouse_scroll_lines: config.ui.mouse_scroll_lines(),
             right_click_passthrough_modifiers: config.ui.right_click_passthrough_modifiers(),
             redraw_on_focus_gained: config.ui.redraw_on_focus_gained,
+            legacy_shift_enter: config.terminal.legacy_shift_enter,
             switch_ascii_input_source_in_prefix: config
                 .experimental
                 .switch_ascii_input_source_in_prefix,
@@ -369,6 +370,11 @@ impl ClientShellConfig {
             }
         }
 
+        // Host byte interpretation stays local, even when keybindings follow an endpoint.
+        if !invalid_section("terminal") {
+            self.legacy_shift_enter = config.terminal.legacy_shift_enter;
+        }
+
         if !invalid_section("theme") {
             self.theme_runtime = crate::app::client_theme_runtime_from_config(config);
             self.theme_name = self.theme_runtime.manual_name.clone();
@@ -478,7 +484,9 @@ mod tests {
     #[test]
     fn live_reload_applies_client_owned_sections() {
         let mut shell = ClientShellConfig::from_config(&Config::default());
+        assert!(!shell.legacy_shift_enter);
         let mut next = Config::default();
+        next.terminal.legacy_shift_enter = true;
         next.ui.sidebar_width = 31;
         next.ui.tab_bar_position = TabBarPositionConfig::Bottom;
         next.ui.agent_panel_sort = crate::config::AgentPanelSortConfig::Priority;
@@ -489,6 +497,7 @@ mod tests {
         let diagnostics = shell.apply_live_config(&next, &[], &[]);
 
         assert!(diagnostics.is_empty());
+        assert!(shell.legacy_shift_enter);
         assert_eq!(shell.sidebar_width, 31);
         assert_eq!(shell.tab_bar_position, TabBarPositionConfig::Bottom);
         assert_eq!(
@@ -513,6 +522,7 @@ mod tests {
             &[],
             &["ui".to_owned(), "keys".to_owned()],
         );
+        assert!(!shell.legacy_shift_enter);
         assert_eq!(shell.agents, previous);
         assert_eq!(
             shell.keybinds.prefix,
@@ -547,17 +557,20 @@ mod tests {
     #[test]
     fn live_reload_preserves_invalid_client_owned_sections() {
         let mut initial = Config::default();
+        initial.terminal.legacy_shift_enter = true;
         initial.ui.sidebar_width = 29;
         initial.keys.prefix = crate::config::BindingConfig::one("ctrl+x");
         let mut shell = ClientShellConfig::from_config(&initial);
+        assert!(shell.legacy_shift_enter);
 
         let mut invalid = Config::default();
         invalid.ui.sidebar_width = 35;
         invalid.keys.prefix = crate::config::BindingConfig::one("ctrl+a");
-        let invalid_sections = vec!["ui".to_owned(), "keys".to_owned()];
+        let invalid_sections = vec!["ui".to_owned(), "keys".to_owned(), "terminal".to_owned()];
         shell.apply_live_config(&invalid, &[], &invalid_sections);
 
         assert_eq!(shell.sidebar_width, 29);
+        assert!(shell.legacy_shift_enter);
         assert_eq!(
             shell.keybinds.prefix,
             vec![(KeyCode::Char('x'), KeyModifiers::CONTROL)]

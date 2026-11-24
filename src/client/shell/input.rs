@@ -228,10 +228,16 @@ impl ClientShellState {
         }
         for event in events {
             let event = match event {
-                RawInputEvent::Key(key) => match self.host_text_commit(&key) {
-                    Some(text) => RawInputEvent::Text(crate::input::TextCommit::new(text)),
-                    None => RawInputEvent::Key(key),
-                },
+                RawInputEvent::Key(mut key) => {
+                    // Opt in only for the exact legacy bytes, never an explicit Alt+Enter report.
+                    if self.config.legacy_shift_enter && key.vt_bytes() == Some(b"\x1b\r") {
+                        key = key.with_modifiers(KeyModifiers::SHIFT);
+                    }
+                    match self.host_text_commit(&key) {
+                        Some(text) => RawInputEvent::Text(crate::input::TextCommit::new(text)),
+                        None => RawInputEvent::Key(key),
+                    }
+                }
                 other => other,
             };
             if self.handle_machine_badge_event(&event, &mut outcome) {

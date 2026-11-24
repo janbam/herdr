@@ -70,6 +70,21 @@ Goto 选择器 (`prefix+g`) 按工作区分组，每个代理或终端各占一�
 
 非拉丁布局中,Ctrl+W 等仅带 Ctrl 的快捷键可以使用支持 Kitty 的主终端报告的物理基础键。拉丁布局字符、Ctrl+Shift 和 AltGr 保留布局含义。不报告物理键的终端无法提供相同的跨布局快捷键。
 
+## 此分支中的传统 Shift+Enter
+
+此分支为将实际 Shift+Enter 按键发送为 `ESC CR` 的终端提供了可选兼容设置。未启用时，Herdr 会按惯例将这些字节解释为 Alt+Enter，因此在 Pi 等应用中可能触发其他操作，而不是插入换行。
+
+在 TUI 客户端的本地配置中启用。如果已有 `[terminal]` 段，请将配置项加入该段:
+
+```toml
+[terminal]
+legacy_shift_enter = true
+```
+
+默认值为 `false`。仅当主终端发送这种传统 Shift+Enter 序列时启用，因为启用后 `ESC CR` 将不再表示 Alt+Enter。普通 Enter、LF/Ctrl+J、明确的 Kitty 和 modifyOtherKeys 按键报告，以及粘贴文本均保持不变。重新加载配置即可生效，即使使用远程服务器的按键绑定，此设置仍由客户端本地配置控制。
+
+应用会按其协商的键盘协议接收 Shift+Enter。普通 shell 窗格保留现有的 Shift+Enter 编码，即普通 Enter，而不是换行字符。直接附加模式仍原样转发字节。
+
 ## 编辑文本输入框
 
 Herdr 的命名对话框、worktree 分支名、筛选框和复制模式搜索框支持在光标处编辑。以下快捷键适用于 Herdr 自己的输入框，不改变窗格内 shell 或智能体的按键行为。
