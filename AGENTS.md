@@ -2,6 +2,13 @@
 
 Terminal based agent runtime for coding agents.
 
+## Fork-owned behavior in janbam/herdr
+
+- Read [FORK_PATCHES.md](FORK_PATCHES.md) before changing fork-owned behavior and before every upstream merge, rebase, or cherry-pick.
+- Preserve every active entry's behavior when integrating upstream, including clean merges and refactors that could silently remove a fork patch. Resolve conflicts against those contracts, not by accepting the upstream version wholesale.
+- Maintain the registry in the same change whenever a fork-owned divergence is introduced, changed, replaced, or retired. Keep its rationale, implementation pointers, user documentation, regression checks, and upstream replacement conditions current.
+- Before completing an upstream integration, account for every active entry and run its regression checks. Retire an entry only when an upstream replacement preserves its tested behavior or Jan explicitly approves removing that behavior. Record the replacement or removal decision in the registry.
+
 ## Scope and Audience
 
 These instructions are layered.

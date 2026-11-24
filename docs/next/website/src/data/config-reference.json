@@ -446,6 +446,12 @@
           "type": "boolean",
           "default": "true",
           "description": "Render pane images in Kitty graphics-compatible outer terminals. Applications use the standard Kitty graphics protocol through pane terminal output; the external socket pane-overlay API is no longer available. Set false to disable graphics rendering. Restart the server or reattach the client after changing it. In remote sessions, server configuration controls Kitty graphics parsing while local client configuration controls outer-terminal output."
+        },
+        {
+          "key": "terminal.legacy_shift_enter",
+          "type": "boolean",
+          "default": "false",
+          "description": "Interpret the exact host bytes ESC CR as Shift+Enter before TUI keybinding dispatch and pane encoding. Enable only for terminals that send this legacy sequence for Shift+Enter; these bytes no longer mean conventional Alt+Enter when enabled. Plain Enter, LF/Ctrl+J, explicit Kitty and modifyOtherKeys reports, and pasted text keep their existing meaning. Uses the client's local config even with server keybindings, and applies on config reload. Direct attach remains byte-transparent. Legacy shell panes retain their normal Shift+Enter encoding, which is plain Enter rather than a newline."
         }
       ]
     },

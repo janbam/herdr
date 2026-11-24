@@ -260,6 +260,8 @@ pub struct TerminalConfig {
     pub new_cwd: NewTerminalCwdConfig,
     /// Render Kitty graphics in compatible outer terminals. Default: true.
     pub kitty_graphics: Option<bool>,
+    /// Interpret host ESC CR as Shift+Enter instead of Alt+Enter in the TUI client. Default: false.
+    pub legacy_shift_enter: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1428,6 +1430,20 @@ new_cwd = "~/Projects"
             config.terminal.new_cwd,
             NewTerminalCwdConfig::Path("~/Projects".into())
         );
+    }
+
+    /// The legacy host-key override requires an explicit boolean opt-in.
+    #[test]
+    fn terminal_legacy_shift_enter_defaults_off_and_parses() {
+        assert!(!Config::default().terminal.legacy_shift_enter);
+        let empty: Config = toml::from_str("").unwrap();
+        assert!(!empty.terminal.legacy_shift_enter);
+        for enabled in [false, true] {
+            let config: Config =
+                toml::from_str(&format!("[terminal]\nlegacy_shift_enter = {enabled}\n")).unwrap();
+            assert_eq!(config.terminal.legacy_shift_enter, enabled);
+        }
+        assert!(toml::from_str::<Config>("[terminal]\nlegacy_shift_enter = 'true'\n").is_err());
     }
 
     #[test]

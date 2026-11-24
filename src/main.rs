@@ -120,6 +120,11 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # Render pane images in Kitty graphics-compatible outer terminals.
 # kitty_graphics = true
 
+# Interpret host ESC CR as Shift+Enter instead of conventional Alt+Enter.
+# Enable only when your terminal sends those bytes for Shift+Enter.
+# This is a local TUI-client setting; direct attach remains byte-transparent.
+# legacy_shift_enter = false
+
 [update]
 # Update channel used by background version checks and `herdr update`.
 # Stable builds default to "stable". Windows preview builds default to "preview"

@@ -1171,6 +1171,99 @@ fn split_read_robustness() {
 // Reporter captures: exact bytes and timing from real terminals in issues.
 // ---------------------------------------------------------------------------
 
+/// The captured legacy Shift+Enter becomes a semantic key only when opted in.
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread")]
+async fn legacy_shift_enter_is_opt_in_and_tracks_live_pane_modes() {
+    // janbam/herdr#1: local tmux 3.4 and the same tmux over SSH both send ESC CR.
+    for enabled in [false, true] {
+        for split in [false, true] {
+            let config: Config =
+                toml::from_str(&format!("[terminal]\nlegacy_shift_enter = {enabled}\n")).unwrap();
+            let mut herdr = HerdrPath::new(HostProfile::Legacy, b"");
+            herdr.state.config = ClientShellConfig::from_config(&config);
+
+            // A running application may change protocols without a client reconnect.
+            for (mode, ordinary, compatible) in [
+                (b"".as_slice(), b"\x1b\r".as_slice(), b"\r".as_slice()),
+                (b"\x1b[>4;1m", b"\x1b\r", b"\r"),
+                (b"\x1b[>4;2m", b"\x1b[27;3;13~", b"\x1b[27;2;13~"),
+                (b"\x1b[>4;0m", b"\x1b\r", b"\r"),
+                (b"\x1b[>7u", b"\x1b[13;3u", b"\x1b[13;2u"),
+                (b"\x1b[<u", b"\x1b\r", b"\r"),
+            ] {
+                herdr.runtime.test_process_pty_bytes(mode);
+                let input = if split {
+                    assert!(herdr.framer.push(b"\x1b").is_empty());
+                    b"\r".as_slice()
+                } else {
+                    b"\x1b\r".as_slice()
+                };
+                let actual = herdr.feed(input).expect("key reaches the pane");
+                assert_eq!(
+                    actual,
+                    if enabled { compatible } else { ordinary },
+                    "enabled={enabled}, split={split}, mode={}",
+                    show(mode)
+                );
+                assert_eq!(herdr.feed(b"\r"), Some(b"\r".to_vec()), "plain Enter");
+            }
+        }
+    }
+}
+
+/// The override must not rewrite neighboring keys or legacy bytes inside paste.
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread")]
+async fn legacy_shift_enter_preserves_other_host_input() {
+    for mode in [b"".as_slice(), b"\x1b[>4;2m", b"\x1b[>7u"] {
+        for input in [
+            b"\r".as_slice(),
+            b"\n",
+            b"\x1b\x01", // The reporter's physical Alt+Enter, distinct from ESC CR.
+            b"\x1b[13;3u",
+            b"\x1b[27;3;13~",
+            b"\x1b[13;5u",
+            b"\x1b[27;5;13~",
+            b"\x1b[200~\x1b\r\x1b[201~",
+        ] {
+            let mut ordinary = HerdrPath::new(HostProfile::Legacy, mode);
+            let mut compatible = HerdrPath::new(HostProfile::Legacy, mode);
+            let mut config = Config::default();
+            config.terminal.legacy_shift_enter = true;
+            compatible.state.config = ClientShellConfig::from_config(&config);
+
+            assert_eq!(
+                compatible.feed(input),
+                ordinary.feed(input),
+                "mode={}, input={}",
+                show(mode),
+                show(input)
+            );
+        }
+    }
+}
+
+/// Host normalization precedes Herdr shortcuts, not just pane serialization.
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread")]
+async fn legacy_shift_enter_matches_shift_enter_bindings_before_dispatch() {
+    let config: Config =
+        toml::from_str("[terminal]\nlegacy_shift_enter = true\n[keys]\ndetach = 'shift+enter'\n")
+            .unwrap();
+    let mut herdr = HerdrPath::new(HostProfile::Legacy, b"\x1b[>7u");
+    herdr.state.config = ClientShellConfig::from_config(&config);
+
+    let explicit_alt = herdr.state.handle_input_bytes(b"\x1b[13;3u");
+    assert!(!explicit_alt.detach);
+    let legacy_shift = herdr.state.handle_input_bytes(b"\x1b\r");
+    assert!(legacy_shift.detach);
+    assert!(!legacy_shift
+        .requests
+        .iter()
+        .any(|request| matches!(request, ClientMessage::ClientShellPaneInput { .. })));
+}
+
 /// (issue, host, reads, gap between reads in ms, Herdr awaiting host replies)
 type SplitCapture = (
     &'static str,

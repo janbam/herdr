@@ -70,6 +70,21 @@ Pane input follows the keyboard modes requested by the app. Plain shells receive
 
 On non-Latin layouts, Ctrl-only shortcuts such as Ctrl+W can use the physical base key reported by a Kitty-capable host. Latin layout characters, Ctrl+Shift chords, and AltGr keep their layout meaning. Terminals that do not report physical keys cannot provide the same layout-independent shortcuts.
 
+## Legacy Shift+Enter in this fork
+
+This fork offers an opt-in for terminals that send `ESC CR` for physical Shift+Enter. Without it, Herdr interprets those bytes as conventional Alt+Enter, which can trigger a different action in an application such as Pi instead of inserting a newline.
+
+Enable it in the TUI client's local config. Add the key to an existing `[terminal]` section if present:
+
+```toml
+[terminal]
+legacy_shift_enter = true
+```
+
+The default is `false`. Enable it only when your host sends this legacy Shift+Enter sequence: `ESC CR` will no longer mean Alt+Enter. Plain Enter, LF/Ctrl+J, explicit Kitty and modifyOtherKeys key reports, and pasted text are unchanged. The setting applies on config reload and stays client-local even when keybindings come from a remote server.
+
+Applications receive Shift+Enter in their negotiated keyboard protocol. Plain shell panes retain their normal Shift+Enter encoding, which is plain Enter rather than a newline. Direct attach remains byte-transparent.
+
 ## Editing text fields
 
 Herdr's naming dialogs, worktree branch fields, filters, and copy-mode search support editing at the cursor. These shortcuts apply to Herdr-owned fields, not to the shell or agent inside a pane.
